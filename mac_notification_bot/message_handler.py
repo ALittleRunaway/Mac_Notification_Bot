@@ -29,7 +29,7 @@ class MessageHandler():
             else:
                 self.sender_name = self.sender.first_name
         except:
-            self.chat_name = self.chat.first_name
+            self.chat_name = "Some chat"
             self.sender_name = self.sender.first_name
 
     def create_message(self, event):

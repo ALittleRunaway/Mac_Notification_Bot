@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from telethon import TelegramClient
 from telethon import events
@@ -8,6 +9,7 @@ from .message_handler import MessageHandler
 
 
 client = TelegramClient(settings.username, settings.api_id, settings.api_hash)
+logger = logging.getLogger(__name__)
 message_handler = MessageHandler()
 
 
@@ -27,6 +29,7 @@ async def connect():
 
 
 if __name__ == '__main__':
+    logger.error("The bot has started")
     loop = asyncio.get_event_loop()
     asyncio.ensure_future(connect())
     loop.run_forever()
