@@ -1,22 +1,30 @@
 import subprocess
+import logging
 
 import telethon
 
 from .settings import settings
 
+
 class MessageHandler():
-    def __init__(self):
+    def __init__(self, logger):
         self.chat = None
         self.chat_name = None
         self.sender = None
         self.sender_name = None
         self.message = None
         self.me = None
+        self.logger = logger
 
     async def get_message_info(self, event, client):
         self.chat = await event.get_chat()
         self.sender = await event.get_sender()
         self.me = await client.get_me()
+        self.logger.info(f"{'-'*20}NEW MESSAGE{'-'*20}")
+        self.logger.info(event)
+        self.logger.info(self.chat)
+        self.logger.info(self.sender)
+        self.logger.info("-" * 50)
 
         try:
             if self.chat.last_name is not None:
@@ -29,12 +37,16 @@ class MessageHandler():
             else:
                 self.sender_name = self.sender.first_name
         except:
-            self.chat_name = "Some chat"
-            self.sender_name = self.sender.first_name
+            pass
 
     def create_message(self, event):
-        if self.sender.is_self or isinstance(self.me.status, telethon.tl.types.UserStatusOnline):
+        if isinstance(self.chat, telethon.tl.types.Channel):
             return False
+        if isinstance(self.me.status, telethon.tl.types.UserStatusOnline):
+            return False
+        if self.sender:
+            if self.sender.is_self:
+                return False
 
         if event.message.message == "":
             msg_text = "Voice message"
@@ -58,4 +70,4 @@ class MessageHandler():
         await self.get_message_info(event, client)
         if self.create_message(event):
             self.send_message_to_imessages()
-        self.__init__()
+        self.__init__(self.logger)

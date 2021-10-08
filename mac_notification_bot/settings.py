@@ -3,12 +3,12 @@ import os
 
 class Settings:
     """Settings for the bot"""
-    api_id = os.getenv("API_ID")
-    api_hash = os.getenv("API_HASH")
-    phone = os.getenv("PHONE")
-    username = os.getenv("USERNAME")
-    email = os.getenv("EMAIL")
-    tg_id = os.getenv("TG_ID")
+    api_id = 8841186
+    api_hash = "555a47767e5e1584e547cfcc913d0db9"
+    phone = "79522111728"
+    username = "just_a_moron"
+    email = "marycool674@gmail.com"
+    tg_id = 870434698
 
 
 settings = Settings()
