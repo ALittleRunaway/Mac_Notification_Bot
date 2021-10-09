@@ -9,8 +9,6 @@ from .message_handler import MessageHandler
 
 
 client = TelegramClient(settings.username, settings.api_id, settings.api_hash)
-logging.basicConfig(filename="../mac_bot_logs.txt", filemode='a', datefmt='%H:%M:%S',
-                    format='%(asctime)s,%(msecs)d %(name)s %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 message_handler = MessageHandler(logger)
 

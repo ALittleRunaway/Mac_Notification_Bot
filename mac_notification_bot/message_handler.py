@@ -1,7 +1,10 @@
 import subprocess
-import logging
 
 import telethon
+from telethon.tl.types import Channel
+from telethon.tl.types import User
+from telethon.tl.types import UserStatusOnline
+from telethon.tl.types import MessageMediaPhoto
 
 from .settings import settings
 
@@ -9,10 +12,7 @@ from .settings import settings
 class MessageHandler():
     def __init__(self, logger):
         self.chat = None
-        self.chat_name = None
         self.sender = None
-        self.sender_name = None
-        self.message = None
         self.me = None
         self.logger = logger
 
@@ -20,54 +20,73 @@ class MessageHandler():
         self.chat = await event.get_chat()
         self.sender = await event.get_sender()
         self.me = await client.get_me()
-        self.logger.info(f"{'-'*20}NEW MESSAGE{'-'*20}")
-        self.logger.info(event)
-        self.logger.info(self.chat)
-        self.logger.info(self.sender)
-        self.logger.info("-" * 50)
 
-        try:
-            if self.chat.last_name is not None:
-                self.chat_name = f"{self.chat.first_name} {self.chat.last_name}"
-            else:
-                self.chat_name = self.chat.first_name
-
-            if self.sender.last_name is not None:
-                self.sender_name = f"{self.sender.first_name} {self.sender.last_name}"
-            else:
-                self.sender_name = self.sender.first_name
-        except:
-            pass
-
-    def create_message(self, event):
-        if isinstance(self.chat, telethon.tl.types.Channel):
+    def validate_message(self, event):
+        # something weird (usually channels)
+        if self.chat is None or self.sender is None:
             return False
-        if isinstance(self.me.status, telethon.tl.types.UserStatusOnline):
+        # the channel's post
+        if isinstance(self.chat, Channel) and isinstance(self.sender, Channel):
             return False
-        if self.sender:
+        # my message
+        if isinstance(self.sender, User):
             if self.sender.is_self:
                 return False
-
-        if event.message.message == "":
-            msg_text = "Voice message"
-        else:
-            msg_text = event.message.message
-
-        if self.chat.id == self.sender.id:
-            self.message = f"✈️ {self.sender_name}: {msg_text}"
-        else:
-            self.message = f"✈️ [{self.chat_name}] {self.sender_name}: {msg_text}"
-
+        # I'm already online
+        if isinstance(self.me.status, UserStatusOnline):
+            return False
         return True
 
-    def send_message_to_imessages(self):
+    def prepare_data(self, event):
+        # it's expected that the sender is always user
+        if self.sender.last_name is not None:
+            sender = f"{self.sender.first_name} {self.sender.last_name}"
+        else:
+            sender = self.sender.first_name
+
+        if isinstance(self.chat, User):  # private chat
+            dialog = sender
+        else:   # group
+            dialog = self.chat.title
+
+        return dialog, sender
+
+    def create_message(self, event, dialog, sender):
+        if (msg := event.message.message) != "":   # simple text, emoji
+            msg_text = msg
+        else:
+            if isinstance(event.message.media, MessageMediaPhoto):  # photo
+                msg_text = "Photo"
+            else:
+                if event.message.media.document.mime_type == "audio/ogg":  # voice message
+                    msg_text = "Voice message"
+                elif event.message.media.document.mime_type == "image/webp":  # sticker
+                    msg_text = f"Sticker {event.message.media.document.attributes[1].alt}"
+                elif event.message.media.document.mime_type == "video/mp4":
+                    if len(event.message.media.document.attributes) < 3:  # video
+                        msg_text = "Video"
+                    else:  # gif
+                        msg_text = "GIF"
+                elif "application" in event.message.media.document.mime_type:  # document
+                    msg_text = "Document"
+                else:  # something unexpected
+                    msg_text = "Message"
+
+        if dialog == sender:
+            message = f"✈️ {dialog}: {msg_text}"
+        else:
+            message = f"✈️ [{dialog}] {sender}: {msg_text}"
+
+        return message
+
+    def send_message_to_imessages(self, message):
         bash_command = ['osascript', '-e', f'tell application "Messages" to send '
-                                           f'"{self.message}" to buddy "{settings.email}"']
+                                           f'"{message}" to buddy "{settings.email}"']
         process = subprocess.Popen(bash_command, stdout=subprocess.PIPE)
         output, error = process.communicate()
 
     async def handle_message(self, event, client):
         await self.get_message_info(event, client)
-        if self.create_message(event):
-            self.send_message_to_imessages()
+        if self.validate_message(event):
+            self.send_message_to_imessages(self.create_message(event, *self.prepare_data(event)))
         self.__init__(self.logger)
